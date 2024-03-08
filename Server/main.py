@@ -2,14 +2,20 @@
 # This file runs the entire webserver and CLI interface that runs the backend of the RPC
 
 # Import required modules first
-import requests, os, json, logging
+import requests, os, json, logging, time, threading
 from flask import Flask, render_template, request
 
 # Setup variables/basic functions
-currentVersion = "0" #The current version. This is for autoupdate
-githubName = "DisRO-development"
+currentVersion = "0.1" #The current version. This is for autoupdate
+githubName = "DisRO-development" # The name of he repo, used in fetch/auto update shitttt
 app = Flask(__name__)
-app.logger.setLevel(logging.ERROR) # Hides default flask outputs
+
+# This jenk to disable flask logging
+# Fuck you flask
+log = logging.getLogger('werkzeug')
+log.setLevel(logging.ERROR)
+app.logger.disabled = True
+log.disabled = True
 
 def readSettings(keyname:str, filepath:str="./Server/config.json"):
     "Returns the setting associated with `keyname` from the `config.json` file \n\nFilepath is optional"
@@ -61,6 +67,9 @@ def askYORN(question:str):
     elif userchoice == "n":
         return False
 
+def startApp():
+    app.run(debug=False, port=2020)
+
 # Main startup code
 def startup():
     try:
@@ -82,12 +91,20 @@ def startup():
         
         # Auto update is either off, or no updates are needed
         # Startup webserver
-        @app.route('/')
-        def home():
+        @app.route('/api/setstatus', methods=['POST'])
+        def setstatus():
+            print(request.data)
             return {"maybe": "Did it work?"}
 
         if __name__ == '__main__':
-            app.run(debug=False, port=3000)
+            app.logger.setLevel(logging.ERROR) # Hides default flask outputs
+
+            # This needs to be in it's own thread
+            # TODO: FIX
+            thread = threading.Thread(target=startApp)
+            thread.start()
+
+        os.system("clear")
     except Exception as e:
         print("An error occured during startup:", e)
 
