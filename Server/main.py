@@ -2,12 +2,14 @@
 # This file runs the entire webserver and CLI interface that runs the backend of the RPC
 
 # Import required modules first
-import requests, os, json
+import requests, os, json, logging
 from flask import Flask, render_template, request
 
 # Setup variables/basic functions
-currentVersion = "0.1" #The current version. This is for autoupdate
+currentVersion = "0" #The current version. This is for autoupdate
 githubName = "DisRO-development"
+app = Flask(__name__)
+app.logger.setLevel(logging.ERROR) # Hides default flask outputs
 
 def readSettings(keyname:str, filepath:str="./Server/config.json"):
     "Returns the setting associated with `keyname` from the `config.json` file \n\nFilepath is optional"
@@ -42,12 +44,22 @@ def getCurrentGithubVersion():
     url = f"https://api.github.com/repos/lunar-orbit1/{githubName}/releases/latest"
     request = requests.get(url)
     if request.status_code == 200:
-        return request.json()['tag_name'][1:]
+        return [request.json()['tag_name'], request.json()]
     else:
         print("Error fetching github version")
         print(f"Status code: {str(request.status_code)}")
         print(request.json())
-        return currentVersion
+        return [currentVersion, request.json()]
+# Recursive bullshit that'll prompt users yes/no questions.
+def askYORN(question:str):
+    "Asks the user the specified yes or no question"
+    userchoice = input(question+" (y/n) \n> ").lower()
+    if userchoice != "y" and userchoice != "n":
+        return askYORN(question)
+    elif userchoice == "y":
+        return True
+    elif userchoice == "n":
+        return False
 
 # Main startup code
 def startup():
@@ -55,11 +67,27 @@ def startup():
         autoUpdate = readSettings('autoUpdate')
         if autoUpdate != None and autoUpdate == True:
             # Check if there is an update to do
-            latest = getCurrentGithubVersion()
-            print(latest)
+            githubData = getCurrentGithubVersion()
+            latest = githubData[0]
+            if latest != currentVersion:
+                print(f"An update is ready to be installed! \nYou will update from {currentVersion} -> {latest}")
+                print(f"View the  changelogs here: {githubData[1]['html_url']}")
+                userchoice = askYORN("Do you want to update?") #Ask recursivly in-case they type the wrong thing
+                if userchoice == True:
+                    # Update here
+                    print("Getting update ready for you!")
+                else:
+                    print("Skipping update. REMEMBER: You can always update with the update command!")
+
         
         # Auto update is either off, or no updates are needed
-        pass
+        # Startup webserver
+        @app.route('/')
+        def home():
+            return {"maybe": "Did it work?"}
+
+        if __name__ == '__main__':
+            app.run(debug=False, port=3000)
     except Exception as e:
         print("An error occured during startup:", e)
 
