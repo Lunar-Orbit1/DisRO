@@ -1,0 +1,6 @@
+*output
+*.exe
+*_internal
+*.txt
+*.vscode
+tester.py
